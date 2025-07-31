@@ -84,7 +84,7 @@ async fn main() {
         .route("/get/{id}", get(serve_share))
         .route("/share", post(generate_share));
 
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3331")
         .await
         .unwrap();
 
