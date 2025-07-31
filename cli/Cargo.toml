@@ -1,0 +1,12 @@
+[package]
+name = "ccdrop-cli"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+clap = { version = "4.5.42", features = ["derive"] }
+reqwest = "0.12.22"
+tokio = {workspace = true}
+aes-gcm = { version = "0.10", features = ["alloc"]}
+base64 = "0.22.1"
+rand = {workspace = true}

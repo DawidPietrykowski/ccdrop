@@ -1,0 +1,11 @@
+[package]
+name = "ccdrop-server"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tokio = {workspace = true}
+tokio-util = { workspace = true}
+serde = { workspace = true}
+axum = "0.8.4"
+rand = { workspace = true}
