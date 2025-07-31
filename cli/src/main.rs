@@ -75,11 +75,11 @@ fn encode_key(key: Key<Aes256Gcm>) -> String {
     URL_SAFE.encode(key)
 }
 
-fn get_url(url: String, id: String) -> String {
+fn get_url(url: &String, id: &String) -> String {
     format!("{url}/get/{id}")
 }
 
-fn share_url(url: String) -> String {
+fn share_url(url: &String) -> String {
     format!("{url}/share")
 }
 
@@ -92,7 +92,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let cipher = generate_cipher(args.key.unwrap());
             let client = reqwest::Client::new();
             let res = client
-                .get(get_url(args.url, args.id.unwrap()))
+                .get(get_url(&args.url, &args.id.unwrap()))
                 .send()
                 .await?;
             assert!(res.status().is_success());
@@ -101,6 +101,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let decrypted = decrypt(&body, &cipher).unwrap();
 
             fs::write("output", decrypted).unwrap();
+
+            println!("Written data to 'output' file");
         }
         Command::Send => {
             let file = fs::read(args.path.unwrap()).unwrap();
@@ -111,7 +113,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let client = reqwest::Client::new();
             let res = client
-                .post(share_url(args.url))
+                .post(share_url(&args.url))
                 .body(encryted)
                 .send()
                 .await?;
@@ -120,7 +122,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let code = res.text().await?;
 
-            println!("cargo run -- -i {code} -k {base64_key} get");
+            println!("cargo run -- -i {code} -k {base64_key} -u {} get", args.url);
         }
     }
 
