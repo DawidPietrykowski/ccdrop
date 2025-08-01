@@ -155,9 +155,9 @@ async fn main() {
         .route("/{*file}", get(serve_website))
         .route("/", get(serve_index));
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3331").await.unwrap();
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
 
-    println!("Running on http://localhost:3331");
+    println!("Running on http://0.0.0.0:3000");
 
     axum::serve(listener, app).await.unwrap();
 }

@@ -1,0 +1,7 @@
+services:
+  ccdrop:
+    image: hotspaghetti/ccdrop:latest
+    ports:
+      - 3000:3000
+    volumes:
+      - ./shares:/data/shares
