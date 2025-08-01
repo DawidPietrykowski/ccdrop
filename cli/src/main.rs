@@ -1,4 +1,4 @@
-use std::{convert::Infallible, fs, path::PathBuf};
+use std::{convert::Infallible, fs, path::PathBuf, time::Instant};
 
 use aes_gcm::{
     Aes256Gcm, Key,
@@ -98,7 +98,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             assert!(res.status().is_success());
 
             let body = res.bytes().await?;
+
+            println!("Downloaded encrypted file");
+            let start = Instant::now();
+            
             let decrypted = decrypt(&body, &cipher).unwrap();
+
+            println!("Decrypted in: {:?}", start.elapsed());
 
             fs::write("output", decrypted).unwrap();
 
