@@ -9,3 +9,4 @@ tokio-util = { workspace = true}
 serde = { workspace = true}
 axum = "0.8.4"
 rand = { workspace = true}
+futures-util = "0.3.31"
