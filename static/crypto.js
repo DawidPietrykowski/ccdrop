@@ -1,9 +1,9 @@
 function arrayBufferToBase64(buffer) {
-  return btoa(String.fromCharCode(...new Uint8Array(buffer)));
+  return (new Uint8Array(buffer)).toBase64({ alphabet: "base64url" });
 }
 
 function base64ToArrayBuffer(base64) {
-  return Uint8Array.from(atob(base64), char => char.charCodeAt(0)).buffer;
+  return Uint8Array.fromBase64(base64, { alphabet: "base64url" }).buffer;
 }
 
 async function generateCipherKeyFromBase64(keyBase64) {
@@ -118,10 +118,43 @@ document.addEventListener("DOMContentLoaded", () => {
                       <button class="copy-btn" data-copy-target="#cli-command-field">Copy</button>
                   </div>
               </div>
+              <button class="btn" id="qr-code-btn">Show QR code</button>
+              <div class="result-item">
+                  <div class="qr-code" id="qrcode">
+                  </div>
+              </div>
           </div>
       `;
 
       resultsDiv.innerHTML = resultsContent;
+
+      const qrCode = new QRCodeStyling({
+          width: 360,
+          height: 360,
+          type: "svg",
+          data: shareUrl,
+          margin: 8,
+          qrOptions: {
+              typeNumber: 0,
+              mode: "Byte",
+              errorCorrectionLevel: "M"
+          },
+          dotsOptions: {
+              color: "#ffffff",
+              type: "square"
+          },
+          backgroundOptions: {
+              color: "transparent",
+          },
+          cornersSquareOptions: {
+              color: "#c792f9",
+              type: "square"
+          },
+          cornersDotOptions: {
+              color: "#c792f9",
+              type: "square"
+          }
+      });
 
       resultsDiv.querySelectorAll('.copy-btn').forEach(button => {
         button.addEventListener('click', (e) => {
@@ -132,10 +165,18 @@ document.addEventListener("DOMContentLoaded", () => {
           });
         });
       });
+
+      let qrCodeBtn = resultsDiv.querySelector('#qr-code-btn');
+      qrCodeBtn.addEventListener('click', (e) => {
+        const qrContainer = document.querySelector('#qrcode');
+        qrCode.append(qrContainer);
+        qrCodeBtn.classList.add("hidden");
+      });
+
     } catch (error) {
       console.error(error);
       resultsDiv.className = 'results error';
-      if (error.contains("404")) {
+      if (error.message && error.message.includes("404")) {
         resultsDiv.innerHTML = `<div class="results-content"><p class="status-message error">Share not found</p></div>`;
       } else {
         resultsDiv.innerHTML = `<div class="results-content"><p class="status-message error">Error: ${error.message}</p></div>`;
