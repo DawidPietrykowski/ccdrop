@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ccdrop</title>
+    <style>
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <h1>ccdrop</h1>
+    <p>This page performs encryption and decryption locally in your browser. No data is sent to a server except for the encrypted blob.</p>
+
+    <div id="send" class="container hidden">
+        <label for="file-input">Select a file to encrypt and upload:</label><br>
+        <input type="file" id="file-input" required><br>
+        
+        <label>Server URL:</label>
+        <label data-server-url></label>
+        <br>
+
+        <button id="encrypt-btn">Encrypt & Upload</button>
+        <div id="encrypt-results"></div>
+    </div>
+
+    <div id="receive" class="container hidden">
+        <label>Share ID:</label>
+        <label id="file-id"></label>
+        <br>
+
+        <label>Base64 Key:</label>
+        <label id="b64-key"></label>
+        <br>
+        
+        <label>Server URL:</label>
+        <label data-server-url></label>
+        <br>
+
+        <button id="decrypt-btn">Download & Decrypt File</button>
+        <div id="decrypt-results"></div>
+    </div>
+
+    <script>
+        if (window.location.pathname.length > 1) {
+            document.getElementById('receive').classList.remove('hidden');
+
+            const shareId = window.location.pathname.substring(1);
+            const decryptionKey = window.location.hash.substring(1);
+            document.getElementById('file-id').innerHTML = shareId;
+            document.getElementById('b64-key').innerHTML = decryptionKey;
+        } else {
+            document.getElementById('send').classList.remove('hidden');
+        }
+
+        const siteUrl = new URL(window.location).origin;
+        document.querySelectorAll('[data-server-url]').forEach(element => {
+            element.innerHTML = siteUrl;
+        });
+    </script>
+    <script src="crypto.js"></script>
+</body>
+</html>

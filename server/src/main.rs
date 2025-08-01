@@ -4,7 +4,7 @@ use axum::{
     Router,
     body::Body,
     extract,
-    http::{HeaderMap, StatusCode, header},
+    http::{HeaderMap, HeaderValue, StatusCode, header},
     response::IntoResponse,
     routing::{get, post},
 };
@@ -39,7 +39,7 @@ impl ShareId {
         if id.len() != ID_LENGTH {
             return Err(ShareCreationError::InvalidId);
         }
-        if !id.chars().all(|c| c.is_ascii_alphabetic()) {
+        if !id.chars().all(|c| c.is_ascii_alphanumeric()) {
             return Err(ShareCreationError::InvalidId);
         }
         Ok(ShareId(id.to_string()))
@@ -75,6 +75,7 @@ async fn serve_share(extract::Path(id): extract::Path<String>) -> impl IntoRespo
         Ok(file) => {
             println!("Serving share: {share_id}");
             let mut headers = HeaderMap::new();
+            headers.append("Access-Control-Allow-Origin", HeaderValue::from_static("*"));
 
             if let Ok(meta) = file.metadata().await {
                 headers.insert(
@@ -99,6 +100,29 @@ async fn serve_share(extract::Path(id): extract::Path<String>) -> impl IntoRespo
     }
 }
 
+async fn serve_website(extract::Path(id): extract::Path<String>) -> impl IntoResponse {
+    println!("Web request: {id}");
+    let path = if id != "crypto.js" {
+        "index.html".to_string()
+    } else {
+        id
+    };
+    match File::open(format!("static/{path}")).await {
+        Ok(file) => {
+            let stream = ReaderStream::new(file);
+            let body = axum::body::Body::from_stream(stream);
+            let mut headers = HeaderMap::new();
+            headers.append("Access-Control-Allow-Origin", HeaderValue::from_static("*"));
+            (StatusCode::OK, headers, body)
+        }
+        Err(_) => (
+            StatusCode::NOT_FOUND,
+            HeaderMap::new(),
+            axum::body::Body::from("Share not found"),
+        ),
+    }
+}
+
 async fn generate_share(body: Body) -> impl IntoResponse {
     let share_id = ShareId::new_random();
     println!("Generated new id: {share_id}");
@@ -119,13 +143,21 @@ async fn generate_share(body: Body) -> impl IntoResponse {
     }
 }
 
+async fn serve_index() -> impl IntoResponse {
+    serve_website(extract::Path("".to_string())).await
+}
+
 #[tokio::main]
 async fn main() {
     let app = Router::new()
         .route("/get/{id}", get(serve_share))
-        .route("/share", post(generate_share));
+        .route("/share", post(generate_share))
+        .route("/{*file}", get(serve_website))
+        .route("/", get(serve_index));
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3331").await.unwrap();
+
+    println!("Running on http://localhost:3331");
 
     axum::serve(listener, app).await.unwrap();
 }

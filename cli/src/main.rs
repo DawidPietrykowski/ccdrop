@@ -62,7 +62,7 @@ fn decrypt(data: &[u8], cipher: &Aes256Gcm) -> Result<Vec<u8>, aes_gcm::Error> {
 fn generate_cipher(base64_key: String) -> Aes256Gcm {
     let decoded_key = URL_SAFE.decode(base64_key).unwrap();
     let key = GenericArray::from_slice(&decoded_key);
-    Aes256Gcm::new(&key)
+    Aes256Gcm::new(key)
 }
 
 fn generate_random_cipher() -> Result<(Aes256Gcm, Key<Aes256Gcm>), Infallible> {
@@ -101,7 +101,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             println!("Downloaded encrypted file");
             let start = Instant::now();
-            
+
             let decrypted = decrypt(&body, &cipher).unwrap();
 
             println!("Decrypted in: {:?}", start.elapsed());
@@ -129,6 +129,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let code = res.text().await?;
 
             println!("cargo run -- -i {code} -k {base64_key} -u {} get", args.url);
+            println!("Open {}/{}#{}", args.url, code, base64_key);
         }
     }
 
