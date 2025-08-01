@@ -102,19 +102,37 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("Downloaded encrypted file");
             let start = Instant::now();
 
-            let decrypted = decrypt(&body, &cipher).unwrap();
+            let mut decrypted = decrypt(&body, &cipher).unwrap();
 
-            println!("Decrypted in: {:?}", start.elapsed());
+            let size_bytes = decrypted.split_off(decrypted.len() - 8);
+            assert_eq!(size_bytes.len(), 8);
+            println!("bytes: {:?}", size_bytes);
+            let filename_len = u64::from_le_bytes(size_bytes.try_into().unwrap()) as usize;
+            let filename_bytes = decrypted.split_off(decrypted.len() - filename_len);
+            assert_eq!(filename_bytes.len(), filename_len);
+            let filename = String::from_utf8(filename_bytes).unwrap();
 
-            fs::write("output", decrypted).unwrap();
+            println!("Decrypted file {} in: {:?}", filename, start.elapsed());
 
-            println!("Written data to 'output' file");
+            if fs::exists(&filename).unwrap_or(false) {
+                println!("File already exists, aborting");
+            }
+            fs::write(&filename, decrypted).unwrap();
+
+            println!("Written data to: {}", filename);
         }
         Command::Send => {
-            let file = fs::read(args.path.unwrap()).unwrap();
+            let path = args.path.unwrap();
+            let mut file = fs::read(&path).unwrap();
+            let filename_bytes = path.file_name().unwrap().to_os_string().into_encoded_bytes();
+            let filename_len = (filename_bytes.len() as u64).to_le_bytes();
+            file.extend(filename_bytes);
+            file.extend(filename_len);
+            println!("bytes: {:?}", filename_len);
 
             let (cipher, key) = generate_random_cipher().unwrap();
             let base64_key = encode_key(key);
+
             let encryted = encrypt(&file, &cipher).unwrap();
 
             let client = reqwest::Client::new();

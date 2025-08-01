@@ -81,8 +81,28 @@ document.addEventListener("DOMContentLoaded", () => {
       // Prepare data
       resultsDiv.textContent = "Encrypting data...";
       const fileBuffer = await fileInput.files[0].arrayBuffer();
+
+      // Get filename and convert to bytes
+      const filename = fileInput.files[0].name;
+      const filenameBytes = new TextEncoder().encode(filename);
+      const filenameSize = filenameBytes.length;
+
+      const totalSize = fileBuffer.byteLength + filenameBytes.length + 8;
+      const combinedBuffer = new ArrayBuffer(totalSize);
+      const combinedView = new Uint8Array(combinedBuffer);
+
+      // Copy original file data
+      combinedView.set(new Uint8Array(fileBuffer), 0); // TODO: optimize by removing this copy
+
+      // Copy filename at the end
+      combinedView.set(filenameBytes, fileBuffer.byteLength);
+
+      // Write filename size as 8 bytes at the end
+      const sizeView = new DataView(combinedBuffer, fileBuffer.byteLength + filenameBytes.length, 8);
+      sizeView.setBigUint64(0, BigInt(filenameSize), true /* little-endian */);
+      
       const { cryptoKey, base64Key } = await generateRandomCipherKey();
-      const encryptedData = await encrypt(fileBuffer, cryptoKey);
+      const encryptedData = await encrypt(combinedBuffer, cryptoKey);
 
       // Send data
       const response = await fetch(`${serverUrl}/share`, {
@@ -218,8 +238,21 @@ document.addEventListener("DOMContentLoaded", () => {
       const decryptedData = await decrypt(encryptedData, cryptoKey);
       console.log("Decrypted data");
 
-      // Serve data
-      const blob = new Blob([decryptedData]);
+      const dataView = new DataView(decryptedData);
+      const totalLength = decryptedData.byteLength;
+
+      // Read filename size from last 8 bytes
+      const filenameSize = Number(dataView.getBigUint64(totalLength - 8, true));
+
+      // Extract filename
+      const filenameStart = totalLength - 8 - filenameSize;
+      const filenameBytes = new Uint8Array(decryptedData, filenameStart, filenameSize);
+      const filename = new TextDecoder().decode(filenameBytes);
+      console.log(`Filename: ${filename}`);
+
+      const originalData = decryptedData.slice(0, filenameStart);
+
+      const blob = new Blob([originalData]);
       const url = URL.createObjectURL(blob);
 
       resultsDiv.innerHTML = ''; // Clear previous results
@@ -230,18 +263,23 @@ document.addEventListener("DOMContentLoaded", () => {
       resultsContent.style.textAlign = 'center';
       resultsContent.style.gap = '1rem';
 
+      const filenameDisplay = document.createElement('f');
+      filenameDisplay.id = 'file-name-display';
+      filenameDisplay.textContent = `Filename: ${filename}`;
+
       const successMessage = document.createElement('p');
       successMessage.className = 'status-message success';
       successMessage.textContent = 'Decryption Successful!';
 
       const downloadLink = document.createElement("a");
       downloadLink.href = url;
-      downloadLink.download = "decrypted-output"; // TODO: get filename
+      downloadLink.download = filename;
       downloadLink.textContent = "Save Decrypted File";
       downloadLink.className = 'btn';
       downloadLink.style.display = 'block';
 
       resultsContent.appendChild(successMessage);
+      resultsContent.appendChild(filenameDisplay);
       resultsContent.appendChild(downloadLink);
       resultsDiv.appendChild(resultsContent);
     } catch (error) {
