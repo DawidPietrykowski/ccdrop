@@ -2,43 +2,329 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>ccdrop</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ccdrop - Secure File Sharing</title>
     <style>
-        .hidden { display: none; }
+        /* CSS Variables for easy theming */
+        :root {
+            --color-bg: #121212;
+            --color-surface: #1e1e1e;
+            --color-primary: #bb86fc;
+            --color-secondary: #03dac6;
+            --color-border: #2c2c2c;
+            --color-text-primary: #e0e0e0;
+            --color-text-secondary: #a0a0a0;
+            --border-radius: 8px;
+        }
+
+        /* General Body & Reset Styles */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            height: 100%;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--color-bg);
+            color: var(--color-text-primary);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            margin: 2rem 0;
+        }
+
+        header h1 {
+            display: inline-block;
+            background-color: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--border-radius);
+            padding: 0.5rem 1.25rem;
+            margin: 1rem 0;
+            color: var(--color-text-primary);
+            font-family: 'SF Mono', 'Fira Code', 'Menlo', 'Consolas', 'Roboto Mono', monospace;
+            font-size: 2rem;
+            font-weight: 500;
+            letter-spacing: 1px;
+        }
+
+        p {
+            color: var(--color-text-secondary);
+            margin-top: 0.5rem;
+            max-width: 500px;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+
+        /* Card Container */
+        .card {
+            background-color: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--border-radius);
+            padding: 2rem;
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .card h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        /* Send View: Drop Zone */
+        .drop-zone {
+            border: 2px dashed var(--color-border);
+            border-radius: var(--border-radius);
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: background-color 0.2s, border-color 0.2s;
+            background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .drop-zone:hover {
+            background-color: #2a2a2a;
+            border-color: var(--color-primary);
+        }
+
+        .drop-zone-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            color: var(--color-text-secondary);
+        }
+
+        .drop-zone-icon {
+            width: 48px;
+            height: 48px;
+            stroke-width: 1.5;
+            color: var(--color-text-secondary);
+        }
+        
+        /* Hide default file input */
+        #file-input {
+            display: none;
+        }
+
+        #file-name-display {
+            font-size: 0.9rem;
+            color: var(--color-text-secondary);
+            background-color: var(--color-bg);
+            padding: 0.5rem 1rem;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--color-border);
+        }
+        
+        #file-name-display span {
+            color: var(--color-text-primary);
+            font-weight: 500;
+        }
+
+        /* Receive View: Info Display */
+        .info-grid {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 1rem;
+            align-items: center;
+            background-color: var(--color-bg);
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--color-border);
+        }
+
+        .info-label {
+            font-weight: 500;
+            color: var(--color-text-secondary);
+        }
+
+        .info-value {
+            font-family: 'SF Mono', 'Fira Code', 'Fira Mono', 'Roboto Mono', monospace;
+            background-color: var(--color-surface);
+            padding: 0.5rem;
+            border-radius: 4px;
+            color: var(--color-primary);
+            word-break: break-all;
+            user-select: all;
+            border: 1px solid #333;
+        }
+        
+        /* Buttons */
+        .btn {
+            background-color: var(--color-primary);
+            color: #000;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: transform 0.2s, background-color 0.2s;
+            text-align: center;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            background-color: #c792f9;
+        }
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        /* Results Display */
+        .results {
+            margin-top: 1rem;
+            padding: 0;
+            border: none;
+            background-color: transparent;
+            font-weight: 500;
+        }
+
+        .results-content {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            padding: 1.5rem;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--color-border);
+        }
+
+        .results.success .results-content {
+            border-color: var(--color-secondary);
+            background-color: rgba(3, 218, 198, 0.05);
+        }
+
+        .results.error .results-content {
+            border-color: #cf6679;
+            background-color: rgba(207, 102, 121, 0.05);
+            color: #cf6679;
+        }
+
+        /* Specific styling for the share info output */
+        .result-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .result-item label {
+            font-size: 0.9rem;
+            color: var(--color-text-secondary);
+            font-weight: 500;
+        }
+
+        .result-field {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .result-field input {
+            flex-grow: 1;
+            background-color: var(--color-bg);
+            border: 1px solid var(--color-border);
+            color: var(--color-text-primary);
+            padding: 0.6rem 0.8rem;
+            border-radius: 6px;
+            font-family: 'SF Mono', 'Fira Code', 'Roboto Mono', monospace;
+            font-size: 0.9rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .copy-btn {
+            flex-shrink: 0;
+            background-color: var(--color-surface);
+            border: 1px solid var(--color-border);
+            color: var(--color-text-secondary);
+            padding: 0.6rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.2s, color 0.2s;
+        }
+
+        .copy-btn:hover {
+            background-color: var(--color-border);
+            color: var(--color-text-primary);
+        }
+
+        /* General status messages */
+        .status-message {
+            font-weight: 600;
+            font-size: 1.1rem;
+            text-align: center;
+        }
+
+        .status-message.success {
+            color: var(--color-secondary);
+        }
+
+        .status-message.error {
+            color: #cf6679;
+        }
     </style>
 </head>
 <body>
-    <h1>ccdrop</h1>
-    <p>This page performs encryption and decryption locally in your browser. No data is sent to a server except for the encrypted blob.</p>
+    <header>
+        <h1>ccdrop</h1>
+    </header>
 
-    <div id="send" class="container hidden">
-        <label for="file-input">Select a file to encrypt and upload:</label><br>
-        <input type="file" id="file-input" required><br>
-        
-        <label>Server URL:</label>
-        <label data-server-url></label>
-        <br>
+    <main>
+        <div id="send" class="card hidden">
+            <h2>Encrypt & Share</h2>
+            
+            <label for="file-input" class="drop-zone">
+                <div class="drop-zone-content">
+                    <svg width="64px" height="64px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M18.22 20.75H5.78C5.43322 20.7359 5.09262 20.6535 4.77771 20.5075C4.4628 20.3616 4.17975 20.155 3.94476 19.8996C3.70977 19.6442 3.52745 19.3449 3.40824 19.019C3.28903 18.693 3.23525 18.3468 3.25 18V15C3.25 14.8011 3.32902 14.6103 3.46967 14.4697C3.61033 14.329 3.80109 14.25 4 14.25C4.19892 14.25 4.38968 14.329 4.53033 14.4697C4.67099 14.6103 4.75 14.8011 4.75 15V18C4.72419 18.2969 4.81365 18.5924 4.99984 18.8251C5.18602 19.0579 5.45465 19.21 5.75 19.25H18.22C18.5154 19.21 18.784 19.0579 18.9702 18.8251C19.1564 18.5924 19.2458 18.2969 19.22 18V15C19.22 14.8011 19.299 14.6103 19.4397 14.4697C19.5803 14.329 19.7711 14.25 19.97 14.25C20.1689 14.25 20.3597 14.329 20.5003 14.4697C20.641 14.6103 20.72 14.8011 20.72 15V18C20.75 18.6954 20.5041 19.3744 20.0359 19.8894C19.5677 20.4045 18.9151 20.7137 18.22 20.75Z" fill="#ffffff"></path> <path d="M16 8.74995C15.9015 8.75042 15.8038 8.7312 15.7128 8.69342C15.6218 8.65564 15.5392 8.60006 15.47 8.52995L12 5.05995L8.53 8.52995C8.38782 8.66243 8.19978 8.73455 8.00548 8.73113C7.81118 8.7277 7.62579 8.64898 7.48838 8.51157C7.35096 8.37416 7.27225 8.18877 7.26882 7.99447C7.2654 7.80017 7.33752 7.61213 7.47 7.46995L11.47 3.46995C11.6106 3.3295 11.8012 3.25061 12 3.25061C12.1987 3.25061 12.3894 3.3295 12.53 3.46995L16.53 7.46995C16.6705 7.61058 16.7493 7.8012 16.7493 7.99995C16.7493 8.1987 16.6705 8.38932 16.53 8.52995C16.4608 8.60006 16.3782 8.65564 16.2872 8.69342C16.1962 8.7312 16.0985 8.75042 16 8.74995Z" fill="#ffffff"></path> <path d="M12 15.75C11.8019 15.7474 11.6126 15.6676 11.4725 15.5275C11.3324 15.3874 11.2526 15.1981 11.25 15V4C11.25 3.80109 11.329 3.61032 11.4697 3.46967C11.6103 3.32902 11.8011 3.25 12 3.25C12.1989 3.25 12.3897 3.32902 12.5303 3.46967C12.671 3.61032 12.75 3.80109 12.75 4V15C12.7474 15.1981 12.6676 15.3874 12.5275 15.5275C12.3874 15.6676 12.1981 15.7474 12 15.75Z" fill="#ffffff"></path> </g></svg>
+                    <span>Drop a file here or click to browse</span>
+                </div>
+            </label>
+            <input type="file" id="file-input" required>
+            
+            <div id="file-name-display" class="hidden">Selected file: <span></span></div>
 
-        <button id="encrypt-btn">Encrypt & Upload</button>
-        <div id="encrypt-results"></div>
-    </div>
+            <button id="encrypt-btn" class="btn">Encrypt & Upload</button>
+            <div id="encrypt-results" class="results"></div>
+        </div>
 
-    <div id="receive" class="container hidden">
-        <label>Share ID:</label>
-        <label id="file-id"></label>
-        <br>
+        <div id="receive" class="card hidden">
+            <h2>Download & Decrypt</h2>
+            
+            <div class="info-grid">
+                <span class="info-label">Share ID</span>
+                <code id="file-id" class="info-value"></code>
+                
+                <span class="info-label">Key</span>
+                <code id="b64-key" class="info-value"></code>
+                
+                <span class="info-label">Server</span>
+                <code data-server-url class="info-value"></code>
+            </div>
 
-        <label>Base64 Key:</label>
-        <label id="b64-key"></label>
-        <br>
-        
-        <label>Server URL:</label>
-        <label data-server-url></label>
-        <br>
+            <button id="decrypt-btn" class="btn">Download & Decrypt File</button>
+            <div id="decrypt-results" class="results"></div>
+        </div>
+    </main>
 
-        <button id="decrypt-btn">Download & Decrypt File</button>
-        <div id="decrypt-results"></div>
-    </div>
+    <header>
+        <p>This page performs encryption and decryption locally in your browser. No data is sent to a server except for the encrypted blob.</p>
+    </header>
 
     <script>
         if (window.location.pathname.length > 1) {
@@ -46,15 +332,47 @@
 
             const shareId = window.location.pathname.substring(1);
             const decryptionKey = window.location.hash.substring(1);
-            document.getElementById('file-id').innerHTML = shareId;
-            document.getElementById('b64-key').innerHTML = decryptionKey;
+            document.getElementById('file-id').textContent = shareId;
+            document.getElementById('b64-key').textContent = decryptionKey;
         } else {
             document.getElementById('send').classList.remove('hidden');
         }
 
         const siteUrl = new URL(window.location).origin;
         document.querySelectorAll('[data-server-url]').forEach(element => {
-            element.innerHTML = siteUrl;
+            element.textContent = siteUrl;
+        });
+        
+        const fileInput = document.getElementById('file-input');
+        const fileNameDisplay = document.getElementById('file-name-display');
+        const fileNameSpan = fileNameDisplay.querySelector('span');
+
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+                fileNameSpan.textContent = fileInput.files[0].name;
+                fileNameDisplay.classList.remove('hidden');
+            } else {
+                fileNameDisplay.classList.add('hidden');
+            }
+        });
+        
+        const dropZone = document.querySelector('.drop-zone');
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = 'var(--color-primary)';
+        });
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = 'var(--color-border)';
+        });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = 'var(--color-border)';
+            if (e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                const event = new Event('change', { bubbles: true });
+                fileInput.dispatchEvent(event);
+            }
         });
     </script>
     <script src="crypto.js"></script>

@@ -61,7 +61,6 @@ async function decrypt(data, key) {
   }
 }
 
-
 document.addEventListener("DOMContentLoaded", () => {
   const encryptButton = document.getElementById("encrypt-btn");
   const decryptButton = document.getElementById("decrypt-btn");
@@ -77,7 +76,6 @@ document.addEventListener("DOMContentLoaded", () => {
       resultsDiv.textContent = "Select a file";
       return;
     }
-
 
     try {
       // Prepare data
@@ -98,13 +96,50 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Print share info
       const shareUrl = `${serverUrl}/${shareId}#${base64Key}`;
-      await navigator.clipboard.writeText(shareUrl);
-      resultsDiv.innerHTML = `File encrypted successfully<br>` +
-        `Share URL: ${shareUrl} <br>` +
-        `CLI command: ccdrop -i ${shareId} -k ${base64Key} -u ${serverUrl} get`;
+
+      resultsDiv.className = 'results success';
+      const resultsContent = `
+          <div class="results-content">
+              <p class="status-message success">File Encrypted Successfully!</p>
+              <p style="text-align:center; color: var(--color-text-secondary); margin-top: -1rem;">The Share URL has been copied to your clipboard.</p>
+            
+              <div class="result-item">
+                  <label for="share-url-field">Share URL</label>
+                  <div class="result-field">
+                      <input id="share-url-field" type="text" readonly value="${shareUrl}">
+                      <button class="copy-btn" data-copy-target="#share-url-field">Copy</button>
+                  </div>
+              </div>
+
+              <div class="result-item">
+                  <label for="cli-command-field">CLI Command</label>
+                  <div class="result-field">
+                      <input id="cli-command-field" type="text" readonly value="ccdrop -i ${shareId} -k ${base64Key} -u ${serverUrl} get">
+                      <button class="copy-btn" data-copy-target="#cli-command-field">Copy</button>
+                  </div>
+              </div>
+          </div>
+      `;
+
+      resultsDiv.innerHTML = resultsContent;
+
+      resultsDiv.querySelectorAll('.copy-btn').forEach(button => {
+        button.addEventListener('click', (e) => {
+          const targetInput = document.querySelector(e.target.dataset.copyTarget);
+          navigator.clipboard.writeText(targetInput.value).then(() => {
+            e.target.textContent = 'Copied!';
+            setTimeout(() => { e.target.textContent = 'Copy'; }, 2000);
+          });
+        });
+      });
     } catch (error) {
       console.error(error);
-      resultsDiv.textContent = `Error: ${error.message}`;
+      resultsDiv.className = 'results error';
+      if (error.contains("404")) {
+        resultsDiv.innerHTML = `<div class="results-content"><p class="status-message error">Share not found</p></div>`;
+      } else {
+        resultsDiv.innerHTML = `<div class="results-content"><p class="status-message error">Error: ${error.message}</p></div>`;
+      }
     }
   });
 
@@ -119,13 +154,17 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-
     try {
       // Fetch data
       console.log("Fetching share");
       resultsDiv.textContent = `Downloading share ID: ${shareId}...`;
       const response = await fetch(`${serverUrl}/get/${shareId}`);
       if (!response.ok) {
+        if (response.status == 404) {
+          resultsDiv.className = 'results error';
+          resultsDiv.innerHTML = `<div class="results-content"><p class="status-message error">Share not found</p></div>`;
+          return;
+        }
         throw new Error(`Server returned status ${response.status}`);
       }
       const encryptedData = await response.arrayBuffer();
@@ -141,18 +180,32 @@ document.addEventListener("DOMContentLoaded", () => {
       // Serve data
       const blob = new Blob([decryptedData]);
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "decrypted-output";
-      a.textContent = "Save decrypted file";
-      a.style.display = "block";
-      a.style.marginTop = "10px";
 
-      resultsDiv.textContent = "Decryption successful";
-      resultsDiv.appendChild(a);
+      resultsDiv.innerHTML = ''; // Clear previous results
+      resultsDiv.className = 'results success';
 
+      const resultsContent = document.createElement('div');
+      resultsContent.className = 'results-content';
+      resultsContent.style.textAlign = 'center';
+      resultsContent.style.gap = '1rem';
+
+      const successMessage = document.createElement('p');
+      successMessage.className = 'status-message success';
+      successMessage.textContent = 'Decryption Successful!';
+
+      const downloadLink = document.createElement("a");
+      downloadLink.href = url;
+      downloadLink.download = "decrypted-output"; // TODO: get filename
+      downloadLink.textContent = "Save Decrypted File";
+      downloadLink.className = 'btn';
+      downloadLink.style.display = 'block';
+
+      resultsContent.appendChild(successMessage);
+      resultsContent.appendChild(downloadLink);
+      resultsDiv.appendChild(resultsContent);
     } catch (error) {
-      resultsDiv.textContent = `Error: ${error.message}`;
+      resultsDiv.className = 'results error';
+      resultsDiv.innerHTML = `<div class="results-content"><p class="status-message error">Error: ${error.message}</p></div>`;
       console.error(error);
     }
   });
