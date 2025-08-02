@@ -146,7 +146,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let code = res.text().await?;
 
-            println!("cargo run -- -i {code} -k {base64_key} -u {} get", args.url);
+            println!("ccdrop -i {code} -k {base64_key} -u {} get", args.url);
             println!("Open {}/{}#{}", args.url, code, base64_key);
         }
     }
