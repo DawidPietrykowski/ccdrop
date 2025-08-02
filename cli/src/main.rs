@@ -15,8 +15,8 @@ const NONCE_SIZE: usize = 12;
 #[command(
     version, about, long_about = None, after_help =
     "Example usage:
-    cargo run -- -p file.txt send
-    cargo run -- -i ABC -k LAeMwZtS6WvT6jsjigmPHa2g1rpJ7fGPuC9rU= get"
+    ccdrop -u https://example.com -p file.txt send
+    ccdrop -u https://example.com -i ABC -k LAeMwZtS6WvT6jsjigmPHa2g1rpJ7fGPuC9rU= get"
 )]
 struct Args {
     #[arg(short, long)]
