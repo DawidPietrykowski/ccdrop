@@ -15,7 +15,9 @@ const NONCE_SIZE: usize = 12;
 #[command(
     version, about, long_about = None, after_help =
     "Example usage:
-    ccdrop -u https://example.com -p file.txt send
+    ccdrop file.txt
+    ccdrop -u https://example.com file.txt
+    ccdrop -u https://example.com file.txt send
     ccdrop -u https://example.com -i ABC -k LAeMwZtS6WvT6jsjigmPHa2g1rpJ7fGPuC9rU= get"
 )]
 struct Args {
@@ -25,14 +27,14 @@ struct Args {
     #[arg(short, long)]
     key: Option<String>,
 
-    #[arg(short, long)]
-    path: Option<PathBuf>,
-
-    #[arg(short, long, default_value = "http://localhost:3000")]
+    #[arg(short, long, env = "CCDROP_URL", default_value = "http://localhost:3000")]
     url: String,
 
+    #[arg(value_name = "FILE")]
+    path: Option<PathBuf>,
+
     #[command(subcommand)]
-    command: Command,
+    command: Option<Command>,
 }
 
 #[derive(Subcommand, Debug)]
@@ -87,7 +89,18 @@ fn share_url(url: &String) -> String {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
-    match args.command {
+    let command = match args.command {
+        Some(c) => c,
+        None => {
+            if args.path.is_some() {
+                Command::Send
+            } else {
+                Command::Get
+            }
+        },
+    };
+
+    match command {
         Command::Get => {
             let cipher = generate_cipher(args.key.unwrap());
             let client = reqwest::Client::new();
