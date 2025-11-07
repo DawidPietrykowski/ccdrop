@@ -27,7 +27,12 @@ struct Args {
     #[arg(short, long)]
     key: Option<String>,
 
-    #[arg(short, long, env = "CCDROP_URL", default_value = "http://localhost:3000")]
+    #[arg(
+        short,
+        long,
+        env = "CCDROP_URL",
+        default_value = "http://localhost:3000"
+    )]
     url: String,
 
     #[arg(value_name = "FILE")]
@@ -97,7 +102,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             } else {
                 Command::Get
             }
-        },
+        }
     };
 
     match command {
@@ -119,7 +124,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let size_bytes = decrypted.split_off(decrypted.len() - 8);
             assert_eq!(size_bytes.len(), 8);
-            println!("bytes: {:?}", size_bytes);
             let filename_len = u64::from_le_bytes(size_bytes.try_into().unwrap()) as usize;
             let filename_bytes = decrypted.split_off(decrypted.len() - filename_len);
             assert_eq!(filename_bytes.len(), filename_len);
@@ -137,11 +141,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Command::Send => {
             let path = args.path.unwrap();
             let mut file = fs::read(&path).unwrap();
-            let filename_bytes = path.file_name().unwrap().to_os_string().into_encoded_bytes();
+            let filename_bytes = path
+                .file_name()
+                .unwrap()
+                .to_os_string()
+                .into_encoded_bytes();
             let filename_len = (filename_bytes.len() as u64).to_le_bytes();
             file.extend(filename_bytes);
             file.extend(filename_len);
-            println!("bytes: {:?}", filename_len);
 
             let (cipher, key) = generate_random_cipher().unwrap();
             let base64_key = encode_key(key);
@@ -154,7 +161,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .body(encryted)
                 .send()
                 .await?;
-            println!("{:?}", res);
             assert!(res.status().is_success());
 
             let code = res.text().await?;
