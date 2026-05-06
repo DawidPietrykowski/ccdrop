@@ -14,3 +14,4 @@ tokio = {workspace = true}
 aes-gcm = { version = "0.10", features = ["alloc"]}
 base64 = "0.22.1"
 rand = {workspace = true}
+zstd = "0.13"

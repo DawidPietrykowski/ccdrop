@@ -1,4 +1,4 @@
-use std::{convert::Infallible, fs, path::PathBuf, time::Instant};
+use std::{convert::Infallible, fs, io::{self, BufWriter}, path::PathBuf, time::Instant};
 
 use aes_gcm::{
     Aes256Gcm, Key,
@@ -6,7 +6,11 @@ use aes_gcm::{
 };
 use base64::{Engine as _, engine::general_purpose::URL_SAFE};
 
-use clap::{Parser, Subcommand};
+use clap::{ArgAction, Parser, Subcommand};
+
+use std::fs::File;
+use std::io::BufReader;
+use std::io::prelude::*;
 
 const NONCE_SIZE: usize = 12;
 
@@ -37,6 +41,14 @@ struct Args {
 
     #[arg(value_name = "FILE")]
     path: Option<PathBuf>,
+
+    #[arg(
+        short, 
+        long, 
+        default_value_t = true, 
+        action = ArgAction::Set
+    )]
+    compress: bool,
 
     #[command(subcommand)]
     command: Option<Command>,
@@ -90,6 +102,19 @@ fn share_url(url: &String) -> String {
     format!("{url}/share")
 }
 
+fn format_bytes(bytes: u64) -> String {
+    let units = ["B", "KB", "MB", "GB", "TB"];
+    let mut size = bytes as f64;
+    let mut unit_index = 0;
+
+    while size >= 1024.0 && unit_index < units.len() - 1 {
+        size /= 1024.0;
+        unit_index += 1;
+    }
+
+    format!("{:.2} {}", size, units[unit_index])
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
@@ -122,6 +147,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let mut decrypted = decrypt(&body, &cipher).unwrap();
 
+            let compressed = decrypted.split_off(decrypted.len() - 1)[0] != 0;
             let size_bytes = decrypted.split_off(decrypted.len() - 8);
             assert_eq!(size_bytes.len(), 8);
             let filename_len = u64::from_le_bytes(size_bytes.try_into().unwrap()) as usize;
@@ -133,14 +159,64 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             if fs::exists(&filename).unwrap_or(false) {
                 println!("File already exists, aborting");
+                return Ok(());
             }
-            fs::write(&filename, decrypted).unwrap();
+
+            if compressed {
+                let start_time = Instant::now();
+                let mut z = zstd::stream::read::Decoder::new(&decrypted[..])?;
+
+                let file = File::create(&filename)?;
+                let mut writer = BufWriter::new(file);
+    
+                // stream from zstd decoder to file BufWriter
+                let output_size = io::copy(&mut z, &mut writer)?;
+    
+                writer.flush()?;
+
+                let duration = start_time.elapsed();
+                let input_size = decrypted.len() as u64;
+                let percentage = 100.0 * (input_size as f64) / (output_size as f64);
+                println!(
+                    "Decompressed {} to {} ({:.2}%) in {:?}",
+                    format_bytes(input_size),
+                    format_bytes(output_size),
+                    percentage,
+                    duration
+                );
+            } else {
+                fs::write(&filename, decrypted).unwrap();
+            }
 
             println!("Written data to: {}", filename);
         }
         Command::Send => {
             let path = args.path.unwrap();
-            let mut file = fs::read(&path).unwrap();
+
+            let mut file = if args.compress {
+                let start_time = Instant::now();
+                let input_size = fs::metadata(&path)?.len();
+                let buffer = BufReader::new(File::open(&path)?);
+                let mut z = zstd::stream::read::Encoder::new(buffer, 3)?;
+                let mut output_buffer = Vec::new();
+                z.read_to_end(&mut output_buffer)?;
+                let duration = start_time.elapsed();
+                let output_size = output_buffer.len() as u64;
+                let percentage = 100.0 * (output_size as f64) / (input_size as f64);
+
+                println!(
+                    "Compressed {} to {} ({:.2}%) in {:?}",
+                    format_bytes(input_size),
+                    format_bytes(output_size),
+                    percentage,
+                    duration
+                );
+
+                output_buffer
+            } else {
+                fs::read(&path).unwrap()
+            };
+
             let filename_bytes = path
                 .file_name()
                 .unwrap()
@@ -149,11 +225,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let filename_len = (filename_bytes.len() as u64).to_le_bytes();
             file.extend(filename_bytes);
             file.extend(filename_len);
+            file.extend(&[args.compress as u8]);
 
             let (cipher, key) = generate_random_cipher().unwrap();
             let base64_key = encode_key(key);
 
+            let start_time = Instant::now();
             let encryted = encrypt(&file, &cipher).unwrap();
+            let duration = start_time.elapsed();
+
+            println!("Encrypted in {:?}", duration);
 
             let client = reqwest::Client::new();
             let res = client
