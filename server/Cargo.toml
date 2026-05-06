@@ -7,6 +7,6 @@ edition = "2024"
 tokio = {workspace = true}
 tokio-util = { workspace = true}
 serde = { workspace = true}
-axum = "0.8.4"
+axum = "0.8.9"
 rand = { workspace = true}
-futures-util = "0.3.31"
+futures-util = "0.3.32"

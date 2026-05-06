@@ -129,7 +129,7 @@ async fn generate_share(body: Body) -> impl IntoResponse {
     match create_share_object(&share_id).await {
         Ok(file) => {
             let mut file = BufWriter::new(file);
-            let mut stream = StreamReader::new(body.into_data_stream().map_err(io::Error::other));
+            let stream = StreamReader::new(body.into_data_stream().map_err(io::Error::other));
             let mut body_reader = pin!(stream);
             io::copy(&mut body_reader, &mut file).await.unwrap();
 
