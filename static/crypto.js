@@ -80,18 +80,23 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       // Prepare data
       resultsDiv.textContent = "Encrypting data...";
-      const fileBuffer = await fileInput.files[0].arrayBuffer();
+      let fileBuffer = await fileInput.files[0].arrayBuffer();
+      const compress = false;
+      // TODO: implement compression - fzstd doesn't support compression
+      if (compress) {
+        // fileBuffer = fzstd.compress(new Uint8Array(fileBuffer)).buffer;
+      }
 
       // Get filename and convert to bytes
       const filename = fileInput.files[0].name;
       const filenameBytes = new TextEncoder().encode(filename);
       const filenameSize = filenameBytes.length;
 
-      const totalSize = fileBuffer.byteLength + filenameBytes.length + 8;
+      const totalSize = fileBuffer.byteLength + filenameBytes.length + 8 + 1;
       const combinedBuffer = new ArrayBuffer(totalSize);
       const combinedView = new Uint8Array(combinedBuffer);
 
-      // Copy original file data
+      // Copy original (optionally compressed) file data
       combinedView.set(new Uint8Array(fileBuffer), 0); // TODO: optimize by removing this copy
 
       // Copy filename at the end
@@ -100,6 +105,9 @@ document.addEventListener("DOMContentLoaded", () => {
       // Write filename size as 8 bytes at the end
       const sizeView = new DataView(combinedBuffer, fileBuffer.byteLength + filenameBytes.length, 8);
       sizeView.setBigUint64(0, BigInt(filenameSize), true /* little-endian */);
+
+      // Append the compression flag as the very last byte
+      combinedView[totalSize - 1] = compress ? 1 : 0;
       
       const { cryptoKey, base64Key } = await generateRandomCipherKey();
       const encryptedData = await encrypt(combinedBuffer, cryptoKey);
@@ -241,16 +249,22 @@ document.addEventListener("DOMContentLoaded", () => {
       const dataView = new DataView(decryptedData);
       const totalLength = decryptedData.byteLength;
 
+      // Read compression flag from the very last byte
+      const isCompressed = new Uint8Array(decryptedData)[totalLength - 1] !== 0;
+
       // Read filename size from last 8 bytes
-      const filenameSize = Number(dataView.getBigUint64(totalLength - 8, true));
+      const filenameSize = Number(dataView.getBigUint64(totalLength - 8 - 1, true));
 
       // Extract filename
-      const filenameStart = totalLength - 8 - filenameSize;
+      const filenameStart = totalLength - 8 - 1 - filenameSize;
       const filenameBytes = new Uint8Array(decryptedData, filenameStart, filenameSize);
       const filename = new TextDecoder().decode(filenameBytes);
       console.log(`Filename: ${filename}`);
 
-      const originalData = decryptedData.slice(0, filenameStart);
+      let originalData = decryptedData.slice(0, filenameStart);
+      if (isCompressed) {
+        originalData = fzstd.decompress(new Uint8Array(originalData)).buffer;
+      }
 
       const blob = new Blob([originalData]);
       const url = URL.createObjectURL(blob);
