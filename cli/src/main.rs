@@ -1,8 +1,7 @@
 use std::{convert::Infallible, fs, io::{self, BufWriter}, path::PathBuf, time::Instant};
 
 use aes_gcm::{
-    Aes256Gcm, Key,
-    aead::{Aead, AeadCore, KeyInit, OsRng, generic_array::GenericArray},
+    Aes256Gcm, Key, aead::{Aead, Generate, KeyInit, Nonce},
 };
 use base64::{Engine as _, engine::general_purpose::URL_SAFE};
 
@@ -61,7 +60,7 @@ enum Command {
 }
 
 fn encrypt(plaintext: &[u8], cipher: &Aes256Gcm) -> Result<Vec<u8>, aes_gcm::Error> {
-    let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
+    let nonce = Nonce::<Aes256Gcm>::generate();
     let ciphertext = cipher.encrypt(&nonce, plaintext)?;
 
     let mut result = Vec::with_capacity(NONCE_SIZE + ciphertext.len());
@@ -73,19 +72,18 @@ fn encrypt(plaintext: &[u8], cipher: &Aes256Gcm) -> Result<Vec<u8>, aes_gcm::Err
 
 fn decrypt(data: &[u8], cipher: &Aes256Gcm) -> Result<Vec<u8>, aes_gcm::Error> {
     let (nonce, ciphertext) = data.split_at(12);
-    let nonce = GenericArray::from_slice(nonce);
-    let decrypted_data = cipher.decrypt(nonce, ciphertext)?;
+    let decrypted_data = cipher.decrypt(nonce.try_into().unwrap(), ciphertext)?;
     Ok(decrypted_data)
 }
 
 fn generate_cipher(base64_key: String) -> Aes256Gcm {
     let decoded_key = URL_SAFE.decode(base64_key).unwrap();
-    let key = GenericArray::from_slice(&decoded_key);
-    Aes256Gcm::new(key)
+    let key = Key::<Aes256Gcm>::try_from(decoded_key.as_slice()).unwrap();
+    Aes256Gcm::new(&key)
 }
 
 fn generate_random_cipher() -> Result<(Aes256Gcm, Key<Aes256Gcm>), Infallible> {
-    let key = Aes256Gcm::generate_key(&mut OsRng);
+    let key = Key::<Aes256Gcm>::generate();
     Ok((Aes256Gcm::new(&key), key))
 }
 

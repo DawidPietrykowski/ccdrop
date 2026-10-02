@@ -8,10 +8,10 @@ name = "ccdrop"
 path = "src/main.rs"
 
 [dependencies]
-clap = { version = "4.6.1", features = ["derive", "env"] }
-reqwest = "0.13.3"
+clap = { version = "4.6.7", features = ["derive", "env"] }
+reqwest = "0.13.5"
 tokio = {workspace = true}
-aes-gcm = { version = "0.10", features = ["alloc"]}
-base64 = "0.22.1"
+aes-gcm = { version = "0.11", features = ["alloc"]}
+base64 = "0.23.1"
 rand = {workspace = true}
-zstd = "0.13"
+zstd = "0.14"
